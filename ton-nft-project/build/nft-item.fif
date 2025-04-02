@@ -1,0 +1,312 @@
+"Asm.fif" include
+// automatically generated from `contracts/stdlib.fc` `contracts/op-codes.fc` `contracts/nft-item.fc` 
+PROGRAM{
+  DECLPROC force_chain
+  DECLPROC load_data
+  DECLPROC store_data
+  102351 DECLMETHOD get_nft_data
+  76839 DECLMETHOD is_destroyed
+  106572 DECLMETHOD get_attributes
+  126945 DECLMETHOD get_attribute_value
+  DECLPROC recv_internal
+  force_chain PROC:<{
+    //  addr
+    REWRITESTDADDR	//  _8 _9
+    DROP	//  wc
+    0 PUSHINT	//  wc _5
+    EQUAL	//  _6
+    333 THROWIFNOT
+  }>
+  load_data PROCINLINE:<{
+    // 
+    c4 PUSH	//  _1
+    CTOS	//  ds
+    64 LDU	//  index ds
+    LDMSGADDR	//  index collection_address ds
+    DUP	//  index collection_address ds ds
+    SBITS	//  index collection_address ds _20
+    0 GTINT	//  index collection_address ds _22
+    IF:<{	//  index collection_address ds
+      1 LDU	//  index collection_address is_initialized ds
+      LDMSGADDR	//  index collection_address is_initialized owner_address ds
+      LDREF	//  index collection_address is_initialized owner_address content ds
+      1 LDU	//  index collection_address is_initialized owner_address content is_destroyed ds
+      DUP	//  index collection_address is_initialized owner_address content is_destroyed ds ds
+      SREFS	//  index collection_address is_initialized owner_address content is_destroyed ds _33
+      0 GTINT	//  index collection_address is_initialized owner_address content is_destroyed ds _35
+      IF:<{	//  index collection_address is_initialized owner_address content is_destroyed ds
+        LDREF	//  index collection_address is_initialized owner_address content is_destroyed _57 _56
+        DROP	//  index collection_address is_initialized owner_address content is_destroyed attributes
+      }>ELSE<{	//  index collection_address is_initialized owner_address content is_destroyed ds
+        DROP	//  index collection_address is_initialized owner_address content is_destroyed
+        NEWDICT	//  index collection_address is_initialized owner_address content is_destroyed attributes
+      }>
+    }>ELSE<{	//  index collection_address ds
+      DROP	//  index collection_address
+      0 PUSHINT	//  index collection_address is_initialized=0
+      PUSHNULL	//  index collection_address is_initialized=0 owner_address
+      PUSHNULL	//  index collection_address is_initialized=0 owner_address content
+      s2 PUSH	//  index collection_address is_initialized=0 owner_address content is_destroyed=0
+      NEWDICT	//  index collection_address is_initialized=0 owner_address content is_destroyed=0 attributes
+    }>
+    s3 s4 XCHG
+    s2 s3 XCHG	//  index collection_address owner_address content is_initialized is_destroyed attributes
+  }>
+  store_data PROCINLINE:<{
+    //  index collection_address owner_address content is_initialized is_destroyed attributes
+    s0 s6 XCHG
+    NEWC	//  attributes collection_address owner_address content is_initialized is_destroyed index _7
+    64 STU	//  attributes collection_address owner_address content is_initialized is_destroyed _9
+    s0 s5 XCHG2	//  attributes is_destroyed owner_address content is_initialized _9 collection_address
+    STSLICER	//  attributes is_destroyed owner_address content is_initialized _10
+    1 STU	//  attributes is_destroyed owner_address content _12
+    ROT	//  attributes is_destroyed content _12 owner_address
+    STSLICER	//  attributes is_destroyed content _13
+    STREF	//  attributes is_destroyed _14
+    1 STU	//  attributes _16
+    STREF	//  _17
+    ENDC	//  _18
+    c4 POP
+  }>
+  get_nft_data PROC:<{
+    // 
+    load_data INLINECALLDICT	//  _8 _9 _10 _11 _12 _13 _14
+    3 BLKDROP	//  index collection_address owner_address content
+  }>
+  is_destroyed PROC:<{
+    // 
+    load_data INLINECALLDICT	//  _8 _9 _10 _11 _12 _13 _14
+    s1 s6 XCHG
+    6 BLKDROP	//  is_destroyed
+  }>
+  get_attributes PROC:<{
+    // 
+    load_data INLINECALLDICT	//  _8 _9 _10 _11 _12 _13 _14
+    6 1 BLKDROP2	//  attributes
+  }>
+  get_attribute_value PROC:<{
+    //  attribute_name
+    load_data INLINECALLDICT	//  attribute_name _17 _18 _19 _20 _21 _22 _23
+    6 1 BLKDROP2	//  attribute_name attributes
+    SWAP	//  attributes attribute_name
+    SHA256U	//  attributes _11
+    SWAP
+    8 PUSHPOW2	//  _11 attributes _12=256
+    DICTUGET
+    NULLSWAPIFNOT	//  value success
+    IFJMP:<{	//  value
+      1 PUSHINT	//  value _14=1
+      SWAP	//  _14=1 value
+    }>	//  value
+    DROP	// 
+    0 PUSHINT	//  _15=0
+    PUSHNULL	//  _15=0 _16
+  }>
+  recv_internal PROC:<{
+    //  my_balance msg_value in_msg_full in_msg_body
+    2 2 BLKDROP2	//  in_msg_full in_msg_body
+    DUP	//  in_msg_full in_msg_body in_msg_body
+    SEMPTY	//  in_msg_full in_msg_body _4
+    IFJMP:<{	//  in_msg_full in_msg_body
+      2DROP	// 
+    }>	//  in_msg_full in_msg_body
+    SWAP	//  in_msg_body in_msg_full
+    CTOS	//  in_msg_body cs
+    4 LDU	//  in_msg_body flags cs
+    SWAP
+    1 PUSHINT	//  in_msg_body cs flags _11=1
+    AND	//  in_msg_body cs _12
+    IFJMP:<{	//  in_msg_body cs
+      2DROP	// 
+    }>	//  in_msg_body cs
+    LDMSGADDR	//  in_msg_body _172 _171
+    DROP	//  in_msg_body sender_address
+    SWAP	//  sender_address in_msg_body
+    32 LDU	//  sender_address op in_msg_body
+    64 LDU	//  sender_address op query_id in_msg_body
+    load_data INLINECALLDICT	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+    OVER	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes is_destroyed
+    0 NEQINT	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _40
+    IF:<{	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+      409 THROW
+    }>	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+    0x5 PUSHINT	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _43
+    s10 s(-1) PUXC	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes op _43
+    EQUAL	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _44
+    s3 PUSH	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _44 is_initialized
+    NOT	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _44 _45
+    AND	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _46
+    IFJMP:<{	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+      s8 POP
+      4 BLKDROP
+      s4 POP
+      s4 POP	//  index collection_address attributes in_msg_body
+      LDMSGADDR	//  index collection_address attributes new_owner_address in_msg_body
+      LDREF	//  index collection_address attributes new_owner_address _191 _190
+      DROP	//  index collection_address attributes new_owner_address new_content
+      1 PUSHINT
+      ROT
+      s0 s3 XCHG
+      0 PUSHINT
+      SWAP	//  index collection_address new_owner_address new_content _53=1 _54=0 attributes
+      store_data INLINECALLDICT
+    }>	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+    s2 PUSH	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes is_initialized
+    401 THROWIFNOT
+    0x6 PUSHINT	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _58
+    s10 s(-1) PUXC	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes op _58
+    EQUAL	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes _59
+    IFJMP:<{	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+      s9 POP	//  sender_address attributes query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed
+      s9 s3 XCPU	//  is_destroyed attributes query_id in_msg_body index collection_address owner_address content is_initialized sender_address owner_address
+      SDEQ	//  is_destroyed attributes query_id in_msg_body index collection_address owner_address content is_initialized _61
+      401 THROWIFNOT
+      s0 s5 XCHG	//  is_destroyed attributes query_id is_initialized index collection_address owner_address content in_msg_body
+      LDMSGADDR	//  is_destroyed attributes query_id is_initialized index collection_address owner_address content new_owner_address in_msg_body
+      OVER	//  is_destroyed attributes query_id is_initialized index collection_address owner_address content new_owner_address in_msg_body new_owner_address
+      force_chain CALLDICT
+      s5 s6 XCHG
+      s4 s8 XCHG2
+      s5 s5 s0 XCHG3
+      s1 s3 XCHG
+      s1 s9 XCHG	//  owner_address in_msg_body query_id index collection_address new_owner_address content is_initialized is_destroyed attributes
+      store_data INLINECALLDICT
+      OVER	//  owner_address in_msg_body query_id in_msg_body
+      SBITS	//  owner_address in_msg_body query_id _68
+      0 GTINT	//  owner_address in_msg_body query_id _70
+      IF:<{	//  owner_address in_msg_body query_id
+        SWAP	//  owner_address query_id in_msg_body
+        LDMSGADDR	//  owner_address query_id response_address in_msg_body
+        OVER	//  owner_address query_id response_address in_msg_body response_address
+        2 PLDU	//  owner_address query_id response_address in_msg_body _75
+        0 NEQINT	//  owner_address query_id response_address in_msg_body _77
+        IF:<{	//  owner_address query_id response_address in_msg_body
+          LDREF	//  owner_address query_id response_address _197 _196
+          DROP	//  owner_address query_id response_address _79
+          0x12 PUSHINT	//  owner_address query_id response_address _79 _81
+          0 PUSHINT	//  owner_address query_id response_address _79 _81 _82=0
+          16 PUSHINT	//  owner_address query_id response_address _79 _81 _82=0 _83=16
+          NEWC	//  owner_address query_id response_address _79 _81 _82=0 _83=16 _84
+          6 STU	//  owner_address query_id response_address _79 _81 _82=0 _86
+          s0 s4 XCHG2	//  owner_address query_id _82=0 _79 _81 _86 response_address
+          STSLICER	//  owner_address query_id _82=0 _79 _81 _87
+          s3 PUSH	//  owner_address query_id _82=0 _79 _81 _87 _88=0
+          STGRAMS	//  owner_address query_id _82=0 _79 _81 _89
+          s1 s3 XCHG	//  owner_address query_id _81 _79 _82=0 _89
+          107 STU	//  owner_address query_id _81 _79 _103
+          s1 s2 XCHG	//  owner_address query_id _79 _81 _103
+          32 STU	//  owner_address query_id _79 _105
+          s1 s2 XCHG	//  owner_address _79 query_id _105
+          64 STU	//  owner_address _79 _107
+          ROT	//  _79 _107 owner_address
+          STSLICER	//  _79 _108
+          STREF	//  _109
+          ENDC	//  msg
+          64 PUSHINT	//  msg _111=64
+          SENDRAWMSG
+        }>ELSE<{
+          4 BLKDROP	// 
+        }>
+      }>ELSE<{
+        3 BLKDROP	// 
+      }>
+    }>	//  sender_address op query_id in_msg_body index collection_address owner_address content is_initialized is_destroyed attributes
+    s8 POP	//  sender_address op attributes in_msg_body index collection_address owner_address content is_initialized is_destroyed
+    s9 s4 PUSH2	//  sender_address op attributes in_msg_body index collection_address owner_address content is_initialized is_destroyed sender_address collection_address
+    SDEQ	//  sender_address op attributes in_msg_body index collection_address owner_address content is_initialized is_destroyed _114
+    s10 s4 XCPU	//  _114 op attributes in_msg_body index collection_address owner_address content is_initialized is_destroyed sender_address owner_address
+    SDEQ	//  _114 op attributes in_msg_body index collection_address owner_address content is_initialized is_destroyed _115
+    s1 s10 XCHG	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _114 _115
+    OR	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _116
+    401 THROWIFNOT
+    0x7 PUSHINT	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _118
+    s8 s(-1) PUXC	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized op _118
+    EQUAL	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _119
+    IFJMP:<{	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+      NIP
+      s6 POP	//  is_destroyed is_initialized attributes in_msg_body index collection_address owner_address
+      s0 s3 XCHG	//  is_destroyed is_initialized attributes owner_address index collection_address in_msg_body
+      LDREF	//  is_destroyed is_initialized attributes owner_address index collection_address _199 _198
+      DROP	//  is_destroyed is_initialized attributes owner_address index collection_address new_content
+      s6 s1 s3 XCHG3
+      s5 s5 s4 XCHG3	//  index collection_address owner_address new_content is_initialized is_destroyed attributes
+      store_data INLINECALLDICT
+    }>	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+    0x8 PUSHINT	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _124
+    s8 s(-1) PUXC	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized op _124
+    EQUAL	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _125
+    IFJMP:<{	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+      s7 POP	//  is_destroyed is_initialized attributes in_msg_body index collection_address owner_address content
+      s0 s4 XCHG	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body
+      LDREF	//  is_destroyed is_initialized attributes content index collection_address owner_address _127 in_msg_body
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body _127
+      CTOS	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body attribute_name
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name in_msg_body
+      LDREF	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name _203 _202
+      DROP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name _131
+      CTOS	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name attribute_value
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_value attribute_name
+      SHA256U	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_value _135
+      s1 s0 s6 XCHG3
+      8 PUSHPOW2	//  is_destroyed is_initialized owner_address content index collection_address attribute_value _135 attributes _136=256
+      DICTUSET	//  is_destroyed is_initialized owner_address content index collection_address attributes
+      s6 s5 s0 XCHG3
+      s1 s2 XCHG	//  index collection_address owner_address content is_initialized is_destroyed attributes
+      store_data INLINECALLDICT
+    }>	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+    0x9 PUSHINT	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _139
+    s8 s(-1) PUXC	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized op _139
+    EQUAL	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _140
+    IFJMP:<{	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+      s7 POP	//  is_destroyed is_initialized attributes in_msg_body index collection_address owner_address content
+      s0 s4 XCHG	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body
+      LDREF	//  is_destroyed is_initialized attributes content index collection_address owner_address _142 in_msg_body
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body _142
+      CTOS	//  is_destroyed is_initialized attributes content index collection_address owner_address in_msg_body attribute_name
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name in_msg_body
+      LDREF	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name _207 _206
+      DROP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name _146
+      CTOS	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_name attribute_value
+      SWAP	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_value attribute_name
+      SHA256U	//  is_destroyed is_initialized attributes content index collection_address owner_address attribute_value _150
+      s1 s0 s6 XCHG3
+      8 PUSHPOW2	//  is_destroyed is_initialized owner_address content index collection_address attribute_value _150 attributes _151=256
+      DICTUSET	//  is_destroyed is_initialized owner_address content index collection_address attributes
+      s6 s5 s0 XCHG3
+      s1 s2 XCHG	//  index collection_address owner_address content is_initialized is_destroyed attributes
+      store_data INLINECALLDICT
+    }>	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+    0x10 PUSHINT	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _154
+    s8 s(-1) PUXC	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized op _154
+    EQUAL	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized _155
+    IFJMP:<{	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+      s5 POP
+      s6 POP
+      s6 POP	//  owner_address content attributes is_initialized index collection_address
+      s4 s4 s4 XCHG3
+      s0 s5 XCHG
+      s0 s3 XCHG
+      1 PUSHINT
+      SWAP	//  index collection_address owner_address content is_initialized _156=1 attributes
+      store_data INLINECALLDICT
+    }>	//  is_destroyed op attributes in_msg_body index collection_address owner_address content is_initialized
+    NIP
+    s5 POP	//  is_destroyed op is_initialized in_msg_body index collection_address owner_address
+    0x11 PUSHINT	//  is_destroyed op is_initialized in_msg_body index collection_address owner_address _158
+    s1 s6 XCHG	//  is_destroyed owner_address is_initialized in_msg_body index collection_address op _158
+    EQUAL	//  is_destroyed owner_address is_initialized in_msg_body index collection_address _159
+    IFJMP:<{	//  is_destroyed owner_address is_initialized in_msg_body index collection_address
+      s0 s2 XCHG	//  is_destroyed owner_address is_initialized collection_address index in_msg_body
+      LDREF	//  is_destroyed owner_address is_initialized collection_address index new_content in_msg_body
+      LDREF	//  is_destroyed owner_address is_initialized collection_address index new_content _211 _210
+      DROP	//  is_destroyed owner_address is_initialized collection_address index new_content new_attributes
+      s6 s3 s0 XCHG3
+      s1 s5 XCHG
+      s4 s4 s0 XCHG3	//  index collection_address owner_address new_content is_initialized is_destroyed new_attributes
+      store_data INLINECALLDICT
+    }>	//  is_destroyed owner_address is_initialized in_msg_body index collection_address
+    6 BLKDROP	// 
+    16 PUSHPOW2DEC	//  _167=65535
+    THROWANY
+  }>
+}END>c

@@ -1,0 +1,18 @@
+;; NFT集合合约操作码
+int op::mint() asm "0x1 PUSHINT";
+int op::batch_mint() asm "0x2 PUSHINT";
+int op::change_collection_content() asm "0x3 PUSHINT";
+int op::change_owner() asm "0x4 PUSHINT";
+
+;; NFT个体合约操作码
+int op::init() asm "0x5 PUSHINT";
+int op::transfer() asm "0x6 PUSHINT";
+int op::update_content() asm "0x7 PUSHINT";
+int op::upgrade_nft() asm "0x8 PUSHINT";
+int op::add_attribute() asm "0x9 PUSHINT";
+int op::destroy_nft() asm "0x10 PUSHINT";
+int op::replace_nft() asm "0x11 PUSHINT";
+int op::ownership_assigned() asm "0x12 PUSHINT";
+
+;; 其他操作码
+int op::excesses() asm "0xd PUSHINT"; 

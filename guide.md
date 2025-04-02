@@ -18,7 +18,7 @@
   - 智能合约
   - NFT 实现方式
 - **学习资源**：
-  - TON 官方文档（[docs.ton.org](https://docs.ton.org)）中的"Get Started with TON"。
+  - TON 官方文档（[docs.ton.org](https://docs.ton.org)）中的“Get Started with TON”。
 
 ### 2. 开发环境搭建
 
@@ -34,7 +34,7 @@
 
 ### 3. 初步体验 TON
 
-- **使用 Tonkeeper 扫描 QR 码，完成一个简单的 NFT"挖矿"示例**（如 TON 官方文档中的 NFT Miner 教程）。
+- **使用 Tonkeeper 扫描 QR 码，完成一个简单的 NFT“挖矿”示例**（如 TON 官方文档中的 NFT Miner 教程）。
 - **理解交易确认流程和 TON 的基本操作**。
 
 ---
@@ -56,7 +56,7 @@
   - `Cell`和`Slice`的概念：TON 区块链的核心数据结构。
   - 如何在智能合约中持久化数据。
 - **学习资源**：
-  - TON 文档中的"FunC Language Reference"。
+  - TON 文档中的“FunC Language Reference”。
 
 ### 2. 智能合约基础
 
@@ -154,7 +154,7 @@
 
 ### 3. 增加属性
 
-- **在元数据中扩展属性字段**（如"稀有度"、"等级"）。
+- **在元数据中扩展属性字段**（如“稀有度”、“等级”）。
 - **提供接口动态添加新属性**。
 
 ### 4. 销毁 NFT

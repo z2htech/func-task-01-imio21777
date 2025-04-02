@@ -1,0 +1,205 @@
+#include "stdlib.fc";
+#include "op-codes.fc";
+
+;; NFT个体合约
+
+;; 存储结构
+;; index - NFT索引
+;; collection_address - 所属集合地址
+;; owner_address - 拥有者地址
+;; content - 内容 (包含图片URL, 名称, 描述等)
+;; is_initialized - 初始化标志
+;; is_destroyed - 销毁标志
+;; attributes - 附加属性
+
+(int, slice, slice, cell, int, int, cell) load_data() inline {
+  var ds = get_data().begin_parse();
+  var index = ds~load_uint(64);
+  var collection_address = ds~load_msg_addr();
+  var (is_initialized, owner_address, content, is_destroyed, attributes) = (null(), null(), null(), null(), null());
+  
+  if (ds.slice_bits() > 0) {
+    is_initialized = ds~load_uint(1);
+    owner_address = ds~load_msg_addr();
+    content = ds~load_ref();
+    is_destroyed = ds~load_uint(1);
+    if (ds.slice_refs() > 0) {
+      attributes = ds~load_ref();
+    } else {
+      attributes = new_dict();
+    }
+  } else {
+    is_initialized = 0;
+    owner_address = null();
+    content = null();
+    is_destroyed = 0;
+    attributes = new_dict();
+  }
+  
+  return (index, collection_address, owner_address, content, is_initialized, is_destroyed, attributes);
+}
+
+() store_data(int index, slice collection_address, slice owner_address, cell content, int is_initialized, int is_destroyed, cell attributes) impure inline {
+  set_data(begin_cell()
+    .store_uint(index, 64)
+    .store_slice(collection_address)
+    .store_uint(is_initialized, 1)
+    .store_slice(owner_address)
+    .store_ref(content)
+    .store_uint(is_destroyed, 1)
+    .store_ref(attributes)
+    .end_cell());
+}
+
+;; 获取NFT数据
+(int, slice, slice, cell) get_nft_data() method_id {
+  var (index, collection_address, owner_address, content, is_initialized, is_destroyed, _) = load_data();
+  return (index, collection_address, owner_address, content);
+}
+
+;; 检查NFT是否销毁
+int is_destroyed() method_id {
+  var (_, _, _, _, _, is_destroyed, _) = load_data();
+  return is_destroyed;
+}
+
+;; 获取NFT属性
+cell get_attributes() method_id {
+  var (_, _, _, _, _, _, attributes) = load_data();
+  return attributes;
+}
+
+;; 获取特定属性值
+(int, slice) get_attribute_value(slice attribute_name) method_id {
+  var (_, _, _, _, _, _, attributes) = load_data();
+  
+  (slice value, int success) = attributes.udict_get?(256, string_hash(attribute_name));
+  if (success) {
+    return (1, value);
+  } else {
+    return (0, null());
+  }
+}
+
+;; 内部消息处理函数
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) { ;; 忽略空消息
+    return ();
+  }
+  
+  slice cs = in_msg_full.begin_parse();
+  int flags = cs~load_uint(4);
+  
+  if (flags & 1) { ;; 忽略退还的消息
+    return ();
+  }
+  
+  slice sender_address = cs~load_msg_addr();
+  cs~load_msg_addr(); ;; 跳过目的地址
+  cs~load_coins(); ;; 跳过金额
+  cs~skip_bits(1); ;; 跳过内消息标志
+  
+  int op = in_msg_body~load_uint(32);
+  int query_id = in_msg_body~load_uint(64);
+  
+  var (index, collection_address, owner_address, content, is_initialized, is_destroyed, attributes) = load_data();
+  
+  ;; 检查是否已销毁
+  if (is_destroyed != 0) {
+    throw(409); ;; NFT已销毁错误
+  }
+  
+  ;; 初始化NFT
+  if ((op == op::init()) & (~ is_initialized)) {
+    slice new_owner_address = in_msg_body~load_msg_addr();
+    cell new_content = in_msg_body~load_ref();
+    store_data(index, collection_address, new_owner_address, new_content, 1, 0, attributes);
+    return ();
+  }
+  
+  ;; 只允许初始化的NFT执行以下操作
+  throw_unless(401, is_initialized);
+  
+  ;; 转移NFT
+  if (op == op::transfer()) {
+    ;; 只允许所有者操作
+    throw_unless(401, equal_slices(sender_address, owner_address));
+    
+    slice new_owner_address = in_msg_body~load_msg_addr();
+    force_chain(new_owner_address);
+    
+    ;; 保存新的所有者
+    store_data(index, collection_address, new_owner_address, content, is_initialized, is_destroyed, attributes);
+    
+    ;; 如果指定了响应地址，发送通知
+    if (in_msg_body.slice_bits() > 0) {
+      var response_address = in_msg_body~load_msg_addr();
+      if (response_address.preload_uint(2) != 0) {
+        var msg = begin_cell()
+          .store_uint(0x10, 6) ;; 无须状态，不执行代码
+          .store_slice(response_address)
+          .store_coins(0)
+          .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+          .store_uint(op::ownership_assigned(), 32)
+          .store_uint(query_id, 64)
+          .store_slice(owner_address)
+          .store_ref(in_msg_body~load_ref())
+          .end_cell();
+        send_raw_message(msg, 64); ;; 不支付gas费
+      }
+    }
+    return ();
+  }
+  
+  ;; 只允许集合合约或NFT拥有者调用以下函数
+  throw_unless(401, equal_slices(sender_address, collection_address) | equal_slices(sender_address, owner_address));
+  
+  ;; 更新NFT内容
+  if (op == op::update_content()) {
+    cell new_content = in_msg_body~load_ref();
+    store_data(index, collection_address, owner_address, new_content, is_initialized, is_destroyed, attributes);
+    return ();
+  }
+  
+  ;; 升级NFT属性
+  if (op == op::upgrade_nft()) {
+    slice attribute_name = in_msg_body~load_ref().begin_parse();
+    slice attribute_value = in_msg_body~load_ref().begin_parse();
+    
+    ;; 更新属性词典
+    attributes~udict_set(256, string_hash(attribute_name), attribute_value);
+    
+    store_data(index, collection_address, owner_address, content, is_initialized, is_destroyed, attributes);
+    return ();
+  }
+  
+  ;; 添加属性
+  if (op == op::add_attribute()) {
+    slice attribute_name = in_msg_body~load_ref().begin_parse();
+    slice attribute_value = in_msg_body~load_ref().begin_parse();
+    
+    ;; 添加新属性
+    attributes~udict_set(256, string_hash(attribute_name), attribute_value);
+    
+    store_data(index, collection_address, owner_address, content, is_initialized, is_destroyed, attributes);
+    return ();
+  }
+  
+  ;; 销毁NFT
+  if (op == op::destroy_nft()) {
+    ;; 标记为已销毁
+    store_data(index, collection_address, owner_address, content, is_initialized, 1, attributes);
+    return ();
+  }
+  
+  ;; 置换/更新NFT
+  if (op == op::replace_nft()) {
+    cell new_content = in_msg_body~load_ref();
+    cell new_attributes = in_msg_body~load_ref();
+    
+    store_data(index, collection_address, owner_address, new_content, is_initialized, is_destroyed, new_attributes);
+    return ();
+  }
+  
+  throw(0xffff); ;; 未知操作
+} 

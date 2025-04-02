@@ -1,0 +1,201 @@
+#include "stdlib.fc";
+#include "op-codes.fc";
+
+;; NFT集合合约
+
+;; 存储
+;; collection_data - 集合元数据
+;; owner_address - 管理员地址
+;; next_item_index - 下一个NFT索引
+;; nft_item_code - NFT个体合约代码
+;; royalty_params - 版税参数
+
+(int, cell, slice, int, cell, cell) load_data() inline {
+  var ds = get_data().begin_parse();
+  return (
+    ds~load_uint(32),  ;; collection_content
+    ds~load_ref(),     ;; nft_item_code
+    ds~load_msg_addr(),;; owner_address
+    ds~load_uint(64),  ;; next_item_index
+    ds~load_ref(),     ;; collection_content
+    ds~load_ref()      ;; royalty_params
+  );
+}
+
+() save_data(int storage_flags, cell nft_item_code, slice owner_address, int next_item_index, cell content, cell royalty_params) impure inline {
+  set_data(begin_cell()
+    .store_uint(storage_flags, 32)
+    .store_ref(nft_item_code)
+    .store_slice(owner_address)
+    .store_uint(next_item_index, 64)
+    .store_ref(content)
+    .store_ref(royalty_params)
+    .end_cell());
+}
+
+;; NFT个体初始化
+cell calculate_nft_item_state_init(int item_index, cell nft_item_code) {
+  cell data = begin_cell()
+    .store_uint(item_index, 64)
+    .store_slice(my_address())
+    .end_cell();
+  return begin_cell()
+    .store_uint(0, 2)
+    .store_dict(nft_item_code)
+    .store_dict(data)
+    .store_uint(0, 1)
+    .end_cell();
+}
+
+slice calculate_nft_item_address(int wc, cell state_init) {
+  return begin_cell()
+    .store_uint(4, 3)
+    .store_int(wc, 8)
+    .store_uint(cell_hash(state_init), 256)
+    .end_cell()
+    .begin_parse();
+}
+
+;; 获取集合数据
+(int, int, slice, cell, cell) get_collection_data() method_id {
+  var (storage_flags, nft_item_code, owner_address, next_item_index, content, royalty_params) = load_data();
+  return (storage_flags, next_item_index, owner_address, content, royalty_params);
+}
+
+;; 获取NFT地址
+slice get_nft_address_by_index(int index) method_id {
+  var (_, nft_item_code, _, _, _, _) = load_data();
+  cell state_init = calculate_nft_item_state_init(index, nft_item_code);
+  return calculate_nft_item_address(workchain(), state_init);
+}
+
+;; 获取版税信息
+(slice, int, int) royalty_params() method_id {
+  var (_, _, _, _, _, royalty) = load_data();
+  slice rs = royalty.begin_parse();
+  return (rs~load_msg_addr(), rs~load_uint(16), rs~load_uint(16));
+}
+
+;; 铸造NFT
+() mint(slice to_address, cell nft_content) impure {
+  var (storage_flags_val, nft_item_code, owner_address, next_item_index, content, royalty_params) = load_data();
+  
+  ;; 仅管理员可铸造
+  throw_unless(401, equal_slices(sender_address(), owner_address));
+  
+  ;; 计算NFT状态和地址
+  cell state_init = calculate_nft_item_state_init(next_item_index, nft_item_code);
+  slice nft_address = calculate_nft_item_address(workchain(), state_init);
+  
+  ;; 发送消息创建NFT
+  var msg = begin_cell()
+    .store_uint(0x18, 6)
+    .store_slice(nft_address)
+    .store_coins(50000000) ;; 0.05 TON 发送创建NFT所需gas
+    .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+    .store_ref(state_init)
+    .store_uint(op::init(), 32)
+    .store_uint(0, 64) ;; query_id
+    .store_slice(to_address)
+    .store_ref(nft_content)
+    .end_cell();
+  
+  send_raw_message(msg, 1); ;; 支付gas费用，无找零
+  
+  ;; 递增索引
+  save_data(storage_flags(), nft_item_code, owner_address, next_item_index + 1, content, royalty_params);
+}
+
+;; 批量铸造NFT
+() batch_mint(int number, slice to_address, cell nft_content) impure {
+  var (storage_flags_val, nft_item_code, owner_address, next_item_index, content, royalty_params) = load_data();
+  
+  ;; 仅管理员可铸造
+  throw_unless(401, equal_slices(sender_address(), owner_address));
+  
+  ;; 铸造指定数量的NFT
+  int counter = 0;
+  while (counter < number) {
+    ;; 计算NFT状态和地址
+    cell state_init = calculate_nft_item_state_init(next_item_index, nft_item_code);
+    slice nft_address = calculate_nft_item_address(workchain(), state_init);
+    
+    ;; 发送消息创建NFT
+    var msg = begin_cell()
+      .store_uint(0x18, 6)
+      .store_slice(nft_address)
+      .store_coins(50000000) ;; 0.05 TON for gas
+      .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+      .store_ref(state_init)
+      .store_uint(op::init(), 32)
+      .store_uint(0, 64) ;; query_id
+      .store_slice(to_address)
+      .store_ref(nft_content)
+      .end_cell();
+    
+    send_raw_message(msg, 1); ;; 支付gas，无找零
+    
+    counter += 1;
+    next_item_index += 1;
+  }
+  
+  ;; 保存更新后的状态
+  save_data(storage_flags(), nft_item_code, owner_address, next_item_index, content, royalty_params);
+}
+
+;; 处理消息
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+  if (in_msg_body.slice_empty?()) { ;; 忽略空消息
+    return ();
+  }
+  
+  slice cs = in_msg_full.begin_parse();
+  int flags = cs~load_uint(4);
+  
+  if (flags & 1) { ;; 忽略退还的消息
+    return ();
+  }
+  
+  slice sender_address = cs~load_msg_addr();
+  cs~load_msg_addr(); ;; 跳过目的地址
+  cs~load_coins(); ;; 跳过金额
+  cs~skip_bits(1); ;; 跳过内消息标志
+  
+  int op = in_msg_body~load_uint(32);
+  int query_id = in_msg_body~load_uint(64);
+  
+  var (storage_flags_val, nft_item_code, owner_address, next_item_index, content, royalty_params) = load_data();
+  
+  ;; 铸造NFT操作
+  if (op == op::mint()) {
+    slice to_address = in_msg_body~load_msg_addr();
+    cell nft_content = in_msg_body~load_ref();
+    mint(to_address, nft_content);
+    return ();
+  }
+  
+  ;; 批量铸造NFT操作
+  if (op == op::batch_mint()) {
+    int number = in_msg_body~load_uint(16);
+    slice to_address = in_msg_body~load_msg_addr();
+    cell nft_content = in_msg_body~load_ref();
+    batch_mint(number, to_address, nft_content);
+    return ();
+  }
+  
+  ;; 修改集合元数据操作
+  if (op == op::change_collection_content()) {
+    throw_unless(401, equal_slices(sender_address, owner_address));
+    save_data(storage_flags(), nft_item_code, owner_address, next_item_index, in_msg_body~load_ref(), royalty_params);
+    return ();
+  }
+  
+  ;; 更改集合所有者操作
+  if (op == op::change_owner()) {
+    throw_unless(401, equal_slices(sender_address, owner_address));
+    save_data(storage_flags(), nft_item_code, in_msg_body~load_msg_addr(), next_item_index, content, royalty_params);
+    return ();
+  }
+  
+  throw(0xffff); ;; 未知操作
+} 
